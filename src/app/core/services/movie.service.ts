@@ -1,17 +1,26 @@
 import { Injectable, inject } from '@angular/core';
 import { Firestore, collection, addDoc, doc, updateDoc, deleteDoc, query, orderBy, onSnapshot, CollectionReference, serverTimestamp } from '@angular/fire/firestore';
-import { Observable } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
 import { Movie } from '../models/movie.model';
+import { AuthService } from './auth.service';
 
 @Injectable({
     providedIn: 'root'
 })
 export class MovieService {
     private firestore = inject(Firestore);
+    private authService = inject(AuthService);
     private moviesCollection!: CollectionReference;
 
     constructor() {
         this.moviesCollection = collection(this.firestore, 'movies');
+    }
+
+    private checkAdminPermission(): boolean {
+        const user = this.authService.userSignal();
+        // Fallback for primaryEmailAddress if user is raw clerk object, else use mapped email
+        const email = user?.email || user?.primaryEmailAddress?.emailAddress;
+        return email === 'admin@gmail.com';
     }
 
     getMovies(): Observable<Movie[]> {
@@ -36,6 +45,11 @@ export class MovieService {
 
     addMovie(movie: Movie): Observable<string> {
         return new Observable<string>(observer => {
+            if (!this.checkAdminPermission()) {
+                observer.error(new Error("Missing or insufficient permissions. Only admin@gmail.com can perform this action."));
+                return;
+            }
+
             // Explicitly map fields to ensure no undefined values are passed
             const payload = {
                 name: movie.name || '',
@@ -65,6 +79,11 @@ export class MovieService {
 
     updateMovie(movie: Movie): Observable<void> {
         return new Observable<void>(observer => {
+            if (!this.checkAdminPermission()) {
+                observer.error(new Error("Missing or insufficient permissions. Only admin@gmail.com can perform this action."));
+                return;
+            }
+
             const movieDocRef = doc(this.firestore, `movies/${movie.id}`);
 
             // Explicitly map fields for update
@@ -96,6 +115,11 @@ export class MovieService {
 
     deleteMovie(id: string): Observable<void> {
         return new Observable<void>(observer => {
+            if (!this.checkAdminPermission()) {
+                observer.error(new Error("Missing or insufficient permissions. Only admin@gmail.com can perform this action."));
+                return;
+            }
+
             const movieDocRef = doc(this.firestore, `movies/${id}`);
 
             deleteDoc(movieDocRef)

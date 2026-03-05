@@ -57,3 +57,26 @@ Angular CLI does not come with an end-to-end testing framework by default. You c
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+
+---
+
+## Configuration & secrets 🔒
+
+This repository no longer commits any API keys or service credentials. Personal values live in `.env` (ignored) or your local `environment.ts` file.
+
+1. **Copy the sample**
+   ```bash
+   cp src/environments/environment.sample.ts src/environments/environment.ts
+   ```
+2. **Fill in the placeholders** with the corresponding values from your `.env` or provider dashboard.
+3. **Do not commit** `src/environments/environment.ts` or `.env` – they are already listed in `.gitignore`.
+
+If you accidentally committed sensitive data earlier, remove it with:
+
+```bash
+git rm --cached src/environments/environment.ts
+```
+
+and force‑push the cleaned history if necessary.
+
+This change keeps your codebase safe and prevents rule‑violation errors when pushing.

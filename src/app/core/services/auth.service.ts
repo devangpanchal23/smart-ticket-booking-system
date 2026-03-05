@@ -4,12 +4,14 @@ import { Clerk } from '@clerk/clerk-js';
 import { environment } from '../../../environments/environment';
 import { BehaviorSubject, Observable, map } from 'rxjs';
 import { UserProfile } from '../models/user.model';
+import { Auth, signInWithCustomToken, signOut } from '@angular/fire/auth';
 
 @Injectable({
     providedIn: 'root'
 })
 export class AuthService {
     private router = inject(Router);
+    private fireAuth = inject(Auth);
     private clerk: any | undefined;
     private userSubject = new BehaviorSubject<any>(null);
     private initialized = false;
@@ -48,7 +50,7 @@ export class AuthService {
 
     private async initializeClerk() {
         if (this.initialized) return;
-        
+
         try {
             this.clerk = new (Clerk as any)(environment.clerk.publishableKey);
             await this.clerk.load();
@@ -66,7 +68,7 @@ export class AuthService {
         }
     }
 
-    private updateUserState() {
+    private async updateUserState() {
         if (this.clerk && this.clerk.user) {
             const clerkUser = this.clerk.user;
             const metadata = clerkUser.unsafeMetadata || {};
@@ -87,9 +89,32 @@ export class AuthService {
             };
             this.userSubject.next(user);
             this.userSignal.set(user);
+
+            // Sync Clerk Authentication to Firebase via our custom backend
+            try {
+                if (this.clerk.session) {
+                    const clerkToken = await this.clerk.session.getToken();
+                    if (clerkToken) {
+                        const response = await fetch('http://localhost:3000/api/auth/firebase-token', {
+                            headers: { Authorization: `Bearer ${clerkToken}` }
+                        });
+                        if (response.ok) {
+                            const data = await response.json();
+                            await signInWithCustomToken(this.fireAuth, data.firebaseToken);
+                        } else {
+                            console.error('Failed to get custom token from backend', await response.text());
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to sync Clerk with Firebase authentication:', err);
+            }
         } else {
             this.userSubject.next(null);
             this.userSignal.set(null);
+            try {
+                await signOut(this.fireAuth);
+            } catch (err) { }
         }
     }
 
